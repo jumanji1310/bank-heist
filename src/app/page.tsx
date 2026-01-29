@@ -1,20 +1,29 @@
-import Image from "next/image";
-import PartySocket from "partysocket";
+import RoomUi from "@/components/RoomUI";
+import { redirect } from "next/navigation";
+import { Chat } from "./types";
+
+const randomId = () => Math.random().toString(36).substring(2, 6);
 
 export default function Home() {
-  // connect to our server
-  const partySocket = new PartySocket({
-    host: "localhost:1999",
-    room: "new-room",
-  });
+  async function createRoom(name: string) {
+    "use server";
 
-  // send a message to the server
-  partySocket.send("Hello everyone");
+    const newRoomCode = randomId();
 
-  // print each incoming message from the server to console
-  partySocket.addEventListener("message", (e) => {
-    console.log(e.data);
-  });
+    const chat: Chat = {
+      senderName: "system",
+      content: "Welcome to the chat!",
+    };
+    await fetch(`http://localhost:1999/party/${newRoomCode}`, {
+      method: "POST",
+      body: JSON.stringify(chat),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
 
-  return <div>Hello it's JJ</div>;
+    redirect(`/${newRoomCode}?name=${encodeURIComponent(name)}`);
+  }
+
+  return <RoomUi createRoom={createRoom} />;
 }
