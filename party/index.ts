@@ -1,5 +1,5 @@
 import type * as Party from "partykit/server";
-import type { Chat, Message, Player, serverData } from "@/app/types";
+import type { Chat, Message, Player, ServerData } from "@/app/types";
 
 export default class Server implements Party.Server {
   constructor(readonly room: Party.Room) {}
@@ -13,75 +13,50 @@ export default class Server implements Party.Server {
       (await this.room.storage.get<Player[]>("playerList")) || [];
   }
 
-  async saveServer() {
-    if (this.chatLog) {
-      await this.room.storage.put<Chat[]>("chatLog", this.chatLog);
-    }
-    if (this.playerList) {
-      await this.room.storage.put<Player[]>("playerList", this.playerList);
-    }
+  // === HELPER METHODS ===
+
+  private async saveServer() {
+    await this.room.storage.put<Chat[]>("chatLog", this.chatLog);
+    await this.room.storage.put<Player[]>("playerList", this.playerList);
   }
 
-  async onRequest(req: Party.Request) {
-    if (req.method === "POST") {
-      const chat = (await req.json()) as Chat;
-      this.chatLog.push(chat);
-      this.saveServer();
-      console.log("Chat created:", chat);
-    }
-
-    if (this.chatLog) {
-      return new Response(JSON.stringify(this.chatLog), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    return new Response("Not found", { status: 404 });
+  private broadcast(message: Message) {
+    this.room.broadcast(JSON.stringify(message));
   }
 
-  // when a client sends a message
-  onMessage(message: string, sender: Party.Connection) {
-    const msg = JSON.parse(message) as Message;
+  private addChatMessage(senderName: string, text: string) {
+    const chat: Chat = {
+      senderName,
+      text,
+      date: Date.now(),
+    };
+    this.chatLog.push(chat);
+    this.saveServer();
 
-    if (msg.type === "chat") {
-      console.log("Chat message received:", msg.data);
-      this.chatLog.push(msg.data);
-      this.saveServer();
-      this.room.broadcast(JSON.stringify(msg));
-    } else if (msg.type === "playerJoin") {
-      // Store the player's name
-      this.playerList.push({
-        id: sender.id,
-        name: msg.data.name,
-      });
-
-      const joinMessage: Message = {
-        type: "chat",
-        data: {
-          senderName: "[SYSTEM]",
-          content: `${msg.data.name} (${sender.id}) joined the party!`,
-        },
-      };
-
-      this.chatLog.push(joinMessage.data);
-      this.saveServer();
-      this.room.broadcast(JSON.stringify(joinMessage));
-    } else if (msg.type === "gameUpdate") {
-      this.room.broadcast(JSON.stringify(msg));
-    }
+    this.broadcast({
+      type: "chat",
+      data: chat,
+    });
   }
 
-  // when a new client connects
-  onConnect(connection: Party.Connection) {
-    // Send complete server state to the new client
-    const serverData: serverData = {
+  private broadcastPlayerList() {
+    this.broadcast({
+      type: "playerListUpdate",
+      data: this.playerList,
+    });
+  }
+
+  private getPlayerName(connection: Party.Connection): string | undefined {
+    return (connection.state as { name?: string })?.name;
+  }
+
+  private sendInitMessage(connection: Party.Connection) {
+    const serverData: ServerData = {
       roomId: this.room.id,
       chatLog: this.chatLog,
       playerList: this.playerList,
       gameData: {
         gameState: "waiting",
-        // ... other game data
       },
     };
 
@@ -92,26 +67,86 @@ export default class Server implements Party.Server {
     connection.send(JSON.stringify(initMessage));
   }
 
-  // when a client disconnects
+  // === LIFECYCLE METHODS ===
+
+  async onRequest(req: Party.Request) {
+    if (req.method === "POST") {
+      const chat = (await req.json()) as Chat;
+      this.chatLog.push(chat);
+      await this.saveServer();
+      console.log("Chat created:", chat);
+    }
+
+    return new Response(JSON.stringify(this.chatLog), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  onMessage(message: string, connection: Party.Connection) {
+    const msg = JSON.parse(message) as Message;
+    const playerName = this.getPlayerName(connection);
+
+    console.log(`[${playerName}]:`, msg.type);
+
+    switch (msg.type) {
+      case "chat":
+        this.chatLog.push(msg.data);
+        this.saveServer();
+        this.broadcast(msg);
+        break;
+
+      case "gameUpdate":
+        this.broadcast(msg);
+        break;
+
+      default:
+        console.warn("Unknown message type:", msg);
+    }
+  }
+
+  onConnect(connection: Party.Connection, ctx: Party.ConnectionContext) {
+    const playerName = new URL(ctx.request.url).searchParams.get("name");
+
+    if (playerName) {
+      connection.setState({ name: playerName });
+      this.updatePlayerList("add", connection.id, playerName);
+    }
+
+    this.sendInitMessage(connection);
+  }
+
   onClose(connection: Party.Connection) {
-    // Find the player in the list
-    const player = this.playerList.find((p) => p.id === connection.id);
-    const playerName = player?.name;
+    const playerName = this.getPlayerName(connection);
+    this.updatePlayerList("remove", connection.id, playerName);
+    console.log(`Player disconnected: ${playerName} (${connection.id})`);
+  }
 
-    // Remove the player from the list
-    this.playerList = this.playerList.filter((p) => p.id !== connection.id);
+  private updatePlayerList(
+    action: "add" | "remove",
+    connectionId: string,
+    playerName?: string,
+  ) {
+    switch (action) {
+      case "add":
+        if (playerName) {
+          this.playerList.push({
+            id: connectionId,
+            name: playerName,
+          });
+          this.addChatMessage("[SYSTEM]", `${playerName} joined the party!`);
+        }
+        break;
 
-    const leaveMessage: Message = {
-      type: "chat",
-      data: {
-        senderName: "[SYSTEM]",
-        content: `${playerName} (${connection.id}) left the party!`,
-      },
-    };
+      case "remove":
+        this.playerList = this.playerList.filter((p) => p.id !== connectionId);
+        if (playerName) {
+          this.addChatMessage("[SYSTEM]", `${playerName} left the party!`);
+        }
+        break;
+    }
 
-    this.chatLog.push(leaveMessage.data);
-    this.saveServer();
-    this.room.broadcast(JSON.stringify(leaveMessage));
+    this.broadcastPlayerList();
   }
 }
 

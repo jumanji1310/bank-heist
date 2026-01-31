@@ -1,28 +1,32 @@
-export type Chat = {
-  senderName: string;
-  content: string;
-};
-
+// === PLAYER TYPES ===
 export type Player = {
   id: string;
   name: string;
 };
 
-export type GameData = {
-  //   players: Player[];
-  gameState: string;
-  // ... other game data
+// === CHAT TYPES ===
+export type Chat = {
+  senderName: string;
+  text: string;
+  date: number;
 };
 
-export type Message =
-  | { type: "init"; data: serverData }
-  | { type: "chat"; data: Chat }
-  | { type: "gameUpdate"; data: GameData }
-  | { type: "playerJoin"; data: { playerId: string; name: string } };
+// === GAME TYPES ===
+export type GameData = {
+  gameState: "waiting" | "playing" | "finished";
+  // Add other game data as needed
+};
 
-export type serverData = {
+export type ServerData = {
   roomId: string;
   chatLog: Chat[];
   playerList: Player[];
   gameData: GameData;
 };
+
+// === MESSAGE TYPES ===
+export type Message =
+  | { type: "init"; data: ServerData }
+  | { type: "chat"; data: Chat }
+  | { type: "gameUpdate"; data: GameData }
+  | { type: "playerListUpdate"; data: Player[] };

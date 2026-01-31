@@ -4,6 +4,7 @@ import { Chat, Message } from "@/app/types";
 import usePartySocket from "partysocket/react";
 import { useState, useEffect, useRef } from "react";
 import { PARTYKIT_HOST } from "@/app/env";
+
 export default function ChatUI({
   id,
   playerName,
@@ -26,24 +27,25 @@ export default function ChatUI({
   const socket = usePartySocket({
     host: PARTYKIT_HOST,
     room: id,
+    query: { name: playerName },
+
     onOpen() {
       console.log("connected");
-      // Send player join message with name
-      const joinMsg: Message = {
-        type: "playerJoin",
-        data: { playerId: socket.id, name: playerName },
-      };
-      socket.send(JSON.stringify(joinMsg));
     },
 
     onMessage(e) {
-      const msg = JSON.parse(e.data) as Message;
-      console.log("Received message:", msg);
-      if (msg.type === "init") {
-        setChatLog(msg.data.chatLog);
-        // setGameData(msg.data.gameData);
-      } else if (msg.type === "chat") {
-        setChatLog((prev) => [...prev, msg.data]);
+      const message = JSON.parse(e.data) as Message;
+      console.log("Received message:", message);
+
+      switch (message.type) {
+        case "init":
+          setChatLog(message.data.chatLog);
+          break;
+        case "chat":
+          setChatLog((prev) => [...prev, message.data]);
+          break;
+        default:
+          console.warn("Unknown message type:", message);
       }
     },
     onClose() {
@@ -61,12 +63,18 @@ export default function ChatUI({
         type: "chat",
         data: {
           senderName: playerName,
-          content: message,
+          text: message,
+          date: Date.now(),
         },
       };
       socket.send(JSON.stringify(chatMessage));
       setMessage("");
     }
+  };
+
+  const formatDate = (timestamp: number) => {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
   return (
@@ -75,10 +83,13 @@ export default function ChatUI({
         <h2 className="mb-4 text-xl font-semibold">Chat Log:</h2>
         {chatLog.map((chat, index) => (
           <div key={index} className="mb-3">
-            <p className="text-sm font-semibold text-gray-600">
-              {chat.senderName}:
-            </p>
-            <p className="text-gray-800">{chat.content}</p>
+            <div className="flex items-baseline gap-2">
+              <p className="text-sm font-semibold text-gray-600">
+                {chat.senderName}:
+              </p>
+              <p className="text-xs text-gray-400">{formatDate(chat.date)}</p>
+            </div>
+            <p className="text-gray-800">{chat.text}</p>
           </div>
         ))}
         <div ref={chatEndRef} />

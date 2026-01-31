@@ -2,8 +2,8 @@ import { notFound } from "next/navigation";
 import { Chat } from "../types";
 import ChatUI from "@/components/ChatUI";
 import CopyRoomButton from "@/components/CopyRoomButton";
-import PlayerListUI from "@/components/PlayerListUI";
 import { PARTYKIT_URL } from "../env";
+import Link from "next/link";
 
 export default async function RoomPage({
   params,
@@ -37,6 +37,13 @@ export default async function RoomPage({
     <div className="flex h-screen">
       <div className="w-2/3 p-4">
         <div className="mb-4 flex items-center gap-2">
+          <Link
+            href="/"
+            className="rounded-md bg-gray-200 p-2 hover:bg-gray-300"
+            title="Return to home"
+          >
+            🏠
+          </Link>
           <h1 className="text-2xl font-bold">
             Welcome to room {roomId} {name}!
           </h1>

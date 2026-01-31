@@ -11,8 +11,9 @@ export default function Home() {
     const newRoomCode = randomId();
 
     const chat: Chat = {
-      senderName: "system",
-      content: "Welcome to the chat!",
+      senderName: "[SYSTEM]",
+      text: "Welcome to the chat!",
+      date: Date.now(),
     };
     await fetch(`http://localhost:1999/party/${newRoomCode}`, {
       method: "POST",
