@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:server": "partykit dev",
     "build": "next build",
     "start": "next start",
     "lint": "biome check",
@@ -11,9 +12,10 @@
   },
   "dependencies": {
     "next": "16.1.4",
+    "partysocket": "1.1.10",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "partysocket": "1.1.10"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.0",
@@ -21,8 +23,8 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "partykit": "0.0.115",
     "tailwindcss": "^4",
-    "typescript": "^5",
-    "partykit": "0.0.115"
+    "typescript": "^5"
   }
 }
