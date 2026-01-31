@@ -1,152 +1,50 @@
 import type * as Party from "partykit/server";
-import type { Chat, Message, Player, ServerData } from "@/app/types";
+
+import { gameUpdater, initialGame, Action, ServerAction } from "../game/logic";
+import { GameState } from "../game/logic";
+
+interface ServerMessage {
+  state: GameState;
+}
 
 export default class Server implements Party.Server {
-  constructor(readonly room: Party.Room) {}
+  private gameState: GameState;
 
-  chatLog: Chat[] = [];
-  playerList: Player[] = [];
-
-  async onStart() {
-    this.chatLog = (await this.room.storage.get<Chat[]>("chatLog")) || [];
-    this.playerList =
-      (await this.room.storage.get<Player[]>("playerList")) || [];
+  constructor(readonly party: Party.Party) {
+    this.gameState = initialGame();
+    console.log("Room created:", party.id);
+    console.log("Room target", this.gameState.target);
+    // party.storage.put;
   }
-
-  // === HELPER METHODS ===
-
-  private async saveServer() {
-    await this.room.storage.put<Chat[]>("chatLog", this.chatLog);
-    await this.room.storage.put<Player[]>("playerList", this.playerList);
-  }
-
-  private broadcast(message: Message) {
-    this.room.broadcast(JSON.stringify(message));
-  }
-
-  private addChatMessage(senderName: string, text: string) {
-    const chat: Chat = {
-      senderName,
-      text,
-      date: Date.now(),
-    };
-    this.chatLog.push(chat);
-    this.saveServer();
-
-    this.broadcast({
-      type: "chat",
-      data: chat,
-    });
-  }
-
-  private broadcastPlayerList() {
-    this.broadcast({
-      type: "playerListUpdate",
-      data: this.playerList,
-    });
-  }
-
-  private getPlayerName(connection: Party.Connection): string | undefined {
-    return (connection.state as { name?: string })?.name;
-  }
-
-  private sendInitMessage(connection: Party.Connection) {
-    const serverData: ServerData = {
-      roomId: this.room.id,
-      chatLog: this.chatLog,
-      playerList: this.playerList,
-      gameData: {
-        gameState: "waiting",
-      },
-    };
-
-    const initMessage: Message = {
-      type: "init",
-      data: serverData,
-    };
-    connection.send(JSON.stringify(initMessage));
-  }
-
-  // === LIFECYCLE METHODS ===
-
-  async onRequest(req: Party.Request) {
-    if (req.method === "POST") {
-      const chat = (await req.json()) as Chat;
-      this.chatLog.push(chat);
-      await this.saveServer();
-      console.log("Chat created:", chat);
-    }
-
-    return new Response(JSON.stringify(this.chatLog), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
-  onMessage(message: string, connection: Party.Connection) {
-    const msg = JSON.parse(message) as Message;
-    const playerName = this.getPlayerName(connection);
-
-    console.log(`[${playerName}]:`, msg.type);
-
-    switch (msg.type) {
-      case "chat":
-        this.chatLog.push(msg.data);
-        this.saveServer();
-        this.broadcast(msg);
-        break;
-
-      case "gameUpdate":
-        this.broadcast(msg);
-        break;
-
-      default:
-        console.warn("Unknown message type:", msg);
-    }
-  }
-
   onConnect(connection: Party.Connection, ctx: Party.ConnectionContext) {
-    const playerName = new URL(ctx.request.url).searchParams.get("name");
+    // A websocket just connected!
 
-    if (playerName) {
-      connection.setState({ name: playerName });
-      this.updatePlayerList("add", connection.id, playerName);
-    }
-
-    this.sendInitMessage(connection);
+    // let's send a message to the connection
+    // conn.send();
+    this.gameState = gameUpdater(
+      { type: "UserEntered", user: { id: connection.id } },
+      this.gameState,
+    );
+    this.party.broadcast(JSON.stringify(this.gameState));
   }
-
   onClose(connection: Party.Connection) {
-    const playerName = this.getPlayerName(connection);
-    this.updatePlayerList("remove", connection.id, playerName);
-    console.log(`Player disconnected: ${playerName} (${connection.id})`);
+    this.gameState = gameUpdater(
+      {
+        type: "UserExit",
+        user: { id: connection.id },
+      },
+      this.gameState,
+    );
+    this.party.broadcast(JSON.stringify(this.gameState));
   }
-
-  private updatePlayerList(
-    action: "add" | "remove",
-    connectionId: string,
-    playerName?: string,
-  ) {
-    switch (action) {
-      case "add":
-        if (playerName) {
-          this.playerList.push({
-            id: connectionId,
-            name: playerName,
-          });
-          this.addChatMessage("[SYSTEM]", `${playerName} joined the party!`);
-        }
-        break;
-
-      case "remove":
-        this.playerList = this.playerList.filter((p) => p.id !== connectionId);
-        if (playerName) {
-          this.addChatMessage("[SYSTEM]", `${playerName} left the party!`);
-        }
-        break;
-    }
-
-    this.broadcastPlayerList();
+  onMessage(message: string, sender: Party.Connection) {
+    const action: ServerAction = {
+      ...(JSON.parse(message) as Action),
+      user: { id: sender.id },
+    };
+    console.log(`Received action ${action.type} from user ${sender.id}`);
+    this.gameState = gameUpdater(action, this.gameState);
+    this.party.broadcast(JSON.stringify(this.gameState));
   }
 }
 
