@@ -3,7 +3,7 @@
 import { Chat, Message } from "@/app/types";
 import usePartySocket from "partysocket/react";
 import { useState, useEffect, useRef } from "react";
-
+import { PARTYKIT_HOST } from "@/app/env";
 export default function ChatUI({
   id,
   playerName,
@@ -24,7 +24,7 @@ export default function ChatUI({
   }, [chatLog]);
 
   const socket = usePartySocket({
-    host: "localhost:1999",
+    host: PARTYKIT_HOST,
     room: id,
     onOpen() {
       console.log("connected");

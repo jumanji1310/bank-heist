@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { Chat } from "../types";
 import ChatUI from "@/components/ChatUI";
 import CopyRoomButton from "@/components/CopyRoomButton";
+import PlayerListUI from "@/components/PlayerListUI";
+import { PARTYKIT_URL } from "../env";
 
 export default async function RoomPage({
   params,
@@ -17,7 +19,7 @@ export default async function RoomPage({
     notFound();
   }
 
-  const req = await fetch(`http://localhost:1999/party/${roomId}`, {
+  const req = await fetch(`${PARTYKIT_URL}/party/${roomId}`, {
     method: "GET",
     next: { revalidate: 0 },
   });
