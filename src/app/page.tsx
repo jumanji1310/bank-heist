@@ -2,6 +2,8 @@
 
 import Game from "@/components/Game";
 import RoomUI from "@/components/RoomUI";
+import ChatUI from "@/components/ChatUI";
+import CopyRoomButton from "@/components/CopyRoomButton";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { z } from "zod";
@@ -46,15 +48,27 @@ export default function Home() {
   // Show game if URL has valid params
   if (parsed.success) {
     return (
-      <div className="min-h-screen bg-gray-100">
-        <Game roomId={parsed.data.roomId} username={parsed.data.username} />
-        <div className="flex justify-end p-4">
-          <button
-            onClick={() => router.push("/")}
-            className="rounded-md bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700"
-          >
-            Leave Room
-          </button>
+      <div className="flex h-screen">
+        <div className="w-2/3 p-4">
+          <div className="mb-4 flex items-center gap-2">
+            <button
+              onClick={() => router.back()}
+              className="rounded-md bg-gray-200 p-2 hover:bg-gray-300"
+              title="Return to home"
+            >
+              🏠
+            </button>
+            <h1 className="text-2xl font-bold">
+              Welcome to room {parsed.data.roomId}, {parsed.data.username}!
+            </h1>
+            <CopyRoomButton roomId={parsed.data.roomId} />
+          </div>
+          <Game roomId={parsed.data.roomId} username={parsed.data.username} />
+        </div>
+        <div className="flex w-1/3 flex-col justify-end border-l border-gray-300">
+          <div className="h-1/2">
+            <ChatUI id={parsed.data.roomId} playerName={parsed.data.username} />
+          </div>
         </div>
       </div>
     );
