@@ -16,13 +16,20 @@ export default class Server implements Party.Server {
     console.log("Room target", this.gameState.target);
     // party.storage.put;
   }
+  private generateRandomColor(): string {
+    const hue = Math.floor(Math.random() * 360);
+    return `hsl(${hue}, 70%, 50%)`;
+  }
   onConnect(connection: Party.Connection, ctx: Party.ConnectionContext) {
     // A websocket just connected!
 
     // let's send a message to the connection
     // conn.send();
     this.gameState = gameUpdater(
-      { type: "UserEntered", user: { id: connection.id } },
+      {
+        type: "UserEntered",
+        user: { id: connection.id, color: this.generateRandomColor() },
+      },
       this.gameState,
     );
     this.party.broadcast(JSON.stringify(this.gameState));

@@ -3,16 +3,10 @@ const addLog = (message: string, logs: GameState["log"]): GameState["log"] => {
   return [...logs, { dt: new Date().getTime(), message: message }];
 };
 
-// Helper function to generate a random color
-const generateRandomColor = (): string => {
-  const hue = Math.floor(Math.random() * 360);
-  return `hsl(${hue}, 70%, 50%)`;
-};
-
 // If there is anything you want to track for a specific user, change this interface
 export interface User {
   id: string;
-  color: string;
+  color?: string;
 }
 
 // Do not change this! Every game has a list of users and log of actions
@@ -67,10 +61,7 @@ export const gameUpdater = (
     case "UserEntered":
       return {
         ...state,
-        users: [
-          ...state.users,
-          { ...action.user, color: generateRandomColor() },
-        ],
+        users: [...state.users, action.user],
         log: addLog(`Player ${action.user.id} joined 🎉`, state.log),
       };
 
