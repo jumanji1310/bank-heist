@@ -4,7 +4,6 @@ import { useRouter } from "next/dist/client/components/navigation";
 import CopyRoomButton from "./CopyRoomButton";
 import ChatUI from "./ChatUI";
 import UserBadge from "./UserBadge";
-import { stringToColor } from "@/utils";
 
 interface GameProps {
   username: string;
