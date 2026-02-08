@@ -1,9 +1,6 @@
 // util for easy adding logs
 const addLog = (message: string, logs: GameState["log"]): GameState["log"] => {
-  return [{ dt: new Date().getTime(), message: message }, ...logs].slice(
-    0,
-    MAX_LOG_SIZE,
-  );
+  return [...logs, { dt: new Date().getTime(), message: message }];
 };
 
 // If there is anything you want to track for a specific user, change this interface
