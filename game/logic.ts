@@ -3,9 +3,16 @@ const addLog = (message: string, logs: GameState["log"]): GameState["log"] => {
   return [...logs, { dt: new Date().getTime(), message: message }];
 };
 
+// Helper function to generate a random color
+const generateRandomColor = (): string => {
+  const hue = Math.floor(Math.random() * 360);
+  return `hsl(${hue}, 70%, 50%)`;
+};
+
 // If there is anything you want to track for a specific user, change this interface
 export interface User {
   id: string;
+  color: string;
 }
 
 // Do not change this! Every game has a list of users and log of actions
@@ -23,12 +30,12 @@ export type Action = DefaultAction | GameAction;
 // Do not change!
 export type ServerAction = WithUser<DefaultAction> | WithUser<GameAction>;
 
-// The maximum log size, change as needed
-const MAX_LOG_SIZE = 4;
-
 type WithUser<T> = T & { user: User };
 
-export type DefaultAction = { type: "UserEntered" } | { type: "UserExit" };
+export type DefaultAction =
+  | { type: "UserEntered" }
+  | { type: "UserExit" }
+  | { type: "Chat"; message: string };
 
 // This interface holds all the information about your game
 export interface GameState extends BaseGameState {
@@ -60,17 +67,24 @@ export const gameUpdater = (
     case "UserEntered":
       return {
         ...state,
-        users: [...state.users, action.user],
-        log: addLog(`user ${action.user.id} joined 🎉`, state.log),
+        users: [
+          ...state.users,
+          { ...action.user, color: generateRandomColor() },
+        ],
+        log: addLog(`Player ${action.user.id} joined 🎉`, state.log),
       };
 
     case "UserExit":
       return {
         ...state,
         users: state.users.filter((user) => user.id !== action.user.id),
-        log: addLog(`user ${action.user.id} left 😢`, state.log),
+        log: addLog(`Player ${action.user.id} left 😢`, state.log),
       };
-
+    case "Chat":
+      return {
+        ...state,
+        log: addLog(`${action.user.id}: ${action.message}`, state.log),
+      };
     case "guess":
       if (action.guess === state.target) {
         return {
