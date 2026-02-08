@@ -7,6 +7,7 @@ const addLog = (message: string, logs: GameState["log"]): GameState["log"] => {
 export interface User {
   id: string;
   color?: string;
+  role?: string;
 }
 
 // Do not change this! Every game has a list of users and log of actions
@@ -34,6 +35,19 @@ export type DefaultAction =
 // This interface holds all the information about your game
 export interface GameState extends BaseGameState {
   target: number;
+  phase?:
+    | "role"
+    | "robbery1"
+    | "robbery2"
+    | "robbery3"
+    | "robbery4"
+    | "getaway1"
+    | "getaway2"
+    | "getaway3"
+    | "getaway4"
+    | "hideout";
+  vaultDeck?: string[];
+  alarmDeck?: string[];
 }
 
 // This is how a fresh new game starts out, it's a function so you can make it dynamic!
@@ -45,7 +59,11 @@ export const initialGame = () => ({
 });
 
 // Here are all the actions we can dispatch for a user
-type GameAction = { type: "guess"; guess: number };
+type GameAction =
+  | { type: "guess"; guess: number }
+  | { type: "drawVault" }
+  | { type: "drawAlarm" }
+  | { type: "startGame" };
 
 export const gameUpdater = (
   action: ServerAction,
@@ -75,6 +93,45 @@ export const gameUpdater = (
       return {
         ...state,
         log: addLog(`${action.user.id}: ${action.message}`, state.log),
+      };
+    case "startGame":
+      const roles = [
+        "Agent",
+        "Agent",
+        "Rival",
+        "Rival",
+        "Crew",
+        "Crew",
+        "Crew",
+        "Sticky",
+      ];
+
+      const shuffledRoles = [...roles].sort(() => Math.random() - 0.5);
+
+      const usersWithRoles = state.users.map((u, i) => ({
+        ...u,
+        role: shuffledRoles[i % shuffledRoles.length],
+      }));
+      console.log(
+        "Assigned roles:",
+        usersWithRoles.map((u) => `${u.id}: ${u.role}`),
+      );
+      return {
+        ...state,
+        users: usersWithRoles,
+        phase: "role",
+        log: addLog("Roles assigned 🔀", state.log),
+      };
+
+    case "drawVault":
+      return {
+        ...state,
+        log: addLog(`${action.user.id} drew a vault card 🏦`, state.log),
+      };
+    case "drawAlarm":
+      return {
+        ...state,
+        log: addLog(`${action.user.id} drew an alarm card 🚨`, state.log),
       };
     case "guess":
       if (action.guess === state.target) {

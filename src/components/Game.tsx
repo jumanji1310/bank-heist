@@ -4,6 +4,7 @@ import { useRouter } from "next/dist/client/components/navigation";
 import CopyRoomButton from "./CopyRoomButton";
 import ChatUI from "./ChatUI";
 import UserBadge from "./UserBadge";
+import RolePhase from "./RolePhase";
 
 interface GameProps {
   username: string;
@@ -29,6 +30,10 @@ const Game = ({ username, roomId }: GameProps) => {
     );
   }
 
+  // Find the current user's role
+  const currentUser = gameState.users.find((u) => u.id === username);
+  const userRole = currentUser?.role;
+
   const handleGuess = (event: React.SyntheticEvent) => {
     event.preventDefault();
     // Dispatch allows you to send an action!
@@ -41,9 +46,79 @@ const Game = ({ username, roomId }: GameProps) => {
     dispatch({ type: "Chat", message });
   };
 
+  const handleStartGame = () => {
+    dispatch({ type: "startGame" });
+  };
+
+  // Render different content based on phase
+  const renderPhaseContent = () => {
+    if (!gameState.phase) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full">
+          <h1 className="text-4xl font-bold mb-4">Waiting to start...</h1>
+          <p className="text-gray-600">Click "Start Game" to begin!</p>
+        </div>
+      );
+    }
+
+    switch (gameState.phase) {
+      case "role":
+        // Find teammates based on role
+        const teammates = gameState.users.filter(
+          (u) =>
+            u.id !== username &&
+            u.role === userRole &&
+            (userRole === "Agent" || userRole === "Rival"),
+        );
+
+        return <RolePhase userRole={userRole} teammates={teammates} />;
+
+      case "robbery1":
+      case "robbery2":
+      case "robbery3":
+      case "robbery4":
+        return (
+          <div className="flex flex-col items-center justify-center h-full">
+            <h1 className="text-4xl font-bold mb-4">
+              Robbery Phase {gameState.phase.slice(-1)}
+            </h1>
+            <p className="text-gray-600">Execute the heist!</p>
+          </div>
+        );
+
+      case "getaway1":
+      case "getaway2":
+      case "getaway3":
+      case "getaway4":
+        return (
+          <div className="flex flex-col items-center justify-center h-full">
+            <h1 className="text-4xl font-bold mb-4">
+              Getaway Phase {gameState.phase.slice(-1)}
+            </h1>
+            <p className="text-gray-600">Escape the scene!</p>
+          </div>
+        );
+
+      case "hideout":
+        return (
+          <div className="flex flex-col items-center justify-center h-full">
+            <h1 className="text-4xl font-bold mb-4">Hideout</h1>
+            <p className="text-gray-600">Divide the loot...</p>
+          </div>
+        );
+
+      default:
+        return (
+          <div className="flex flex-col items-center justify-center h-full">
+            <h1 className="text-4xl font-bold mb-4">Game Phase</h1>
+          </div>
+        );
+    }
+  };
+
   return (
     <div className="flex h-screen">
-      <div className="w-2/3 p-4">
+      <div className="w-2/3 p-4 flex flex-col">
         <div className="mb-4 flex items-center gap-2">
           <button
             onClick={() => router.back()}
@@ -55,45 +130,33 @@ const Game = ({ username, roomId }: GameProps) => {
           <h1 className="text-2xl font-bold">
             Welcome to room {roomId}, {username}!
           </h1>
+          {userRole && (
+            <span className="rounded-full bg-purple-500 px-3 py-1 text-sm font-semibold text-white">
+              Role: {userRole}
+            </span>
+          )}
+          {gameState.phase && (
+            <span className="rounded-full bg-blue-500 px-3 py-1 text-sm font-semibold text-white">
+              Phase: {gameState.phase}
+            </span>
+          )}
           <CopyRoomButton roomId={roomId} />
+          <button
+            onClick={handleStartGame}
+            className="ml-auto rounded-md bg-green-500 px-4 py-2 text-white hover:bg-green-600"
+          >
+            Start Game
+          </button>
         </div>
-        <>
-          <h1 className="text-2xl border-b border-yellow-400 text-center relative">
-            🎲 Guess the number!
-          </h1>
-          <section>
-            <form
-              className="flex flex-col gap-4 py-6 items-center"
-              onSubmit={handleGuess}
-            >
-              <label
-                htmlFor="guess"
-                className="text-7xl font-bold text-stone-50 bg-black rounded p-2 text-"
-              >
-                {guess}
-              </label>
-              <input
-                type="range"
-                name="guess"
-                id="guess"
-                className="opacity-70 hover:opacity-100 accent-yellow-400"
-                onChange={(e) => setGuess(Number(e.currentTarget.value))}
-                value={guess}
-              />
-              <button className="rounded border p-5 bg-yellow-400 group text-black shadow hover:animate-wiggle">
-                Guess!
-              </button>
-            </form>
 
-            <div className="border-t border-yellow-400 py-2" />
-          </section>
-        </>
+        <div className="flex-1 overflow-auto">{renderPhaseContent()}</div>
       </div>
+
       <div className="flex w-1/3 flex-col justify-end border-l border-gray-300">
-        <h2 className="text-lg">
+        <h2 className="text-lg p-4">
           Players in room <span className="font-bold">{roomId}</span>
         </h2>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 px-4 pb-4">
           {gameState.users.map((user) => (
             <UserBadge key={user.id} userId={user.id} color={user.color} />
           ))}
