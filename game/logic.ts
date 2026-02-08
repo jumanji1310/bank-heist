@@ -8,6 +8,7 @@ export interface User {
   id: string;
   color?: string;
   role?: string;
+  ready?: boolean;
 }
 
 // Do not change this! Every game has a list of users and log of actions
@@ -63,7 +64,8 @@ type GameAction =
   | { type: "guess"; guess: number }
   | { type: "drawVault" }
   | { type: "drawAlarm" }
-  | { type: "startGame" };
+  | { type: "startGame" }
+  | { type: "ready" };
 
 export const gameUpdater = (
   action: ServerAction,
@@ -152,5 +154,27 @@ export const gameUpdater = (
           ),
         };
       }
+    case "ready": {
+      const updatedUsers = state.users.map((u) =>
+        u.id === action.user.id ? { ...u, ready: true } : u,
+      );
+
+      const allReady = updatedUsers.every((u) => u.ready);
+
+      if (allReady && state.phase === "role") {
+        return {
+          ...state,
+          users: updatedUsers.map((u) => ({ ...u, ready: false })),
+          phase: "robbery1",
+          log: addLog("All players ready! Starting robbery... 🎯", state.log),
+        };
+      }
+
+      return {
+        ...state,
+        users: updatedUsers,
+        log: addLog(`${action.user.id} is ready ✓`, state.log),
+      };
+    }
   }
 };

@@ -4,9 +4,20 @@ import { User } from "../../game/logic";
 interface RolePhaseProps {
   userRole?: string;
   teammates: User[];
+  onReady: () => void;
+  isReady: boolean;
+  readyCount: number;
+  totalPlayers: number;
 }
 
-export default function RolePhase({ userRole, teammates }: RolePhaseProps) {
+export default function RolePhase({
+  userRole,
+  teammates,
+  onReady,
+  isReady,
+  readyCount,
+  totalPlayers,
+}: RolePhaseProps) {
   return (
     <div className="flex flex-col items-center justify-center h-full">
       <h1 className="text-4xl font-bold mb-4">Your Role</h1>
@@ -35,6 +46,19 @@ export default function RolePhase({ userRole, teammates }: RolePhaseProps) {
         )}
 
       <p className="text-gray-600 mt-4">Prepare for the heist...</p>
+
+      <div className="mt-8">
+        <button
+          onClick={onReady}
+          disabled={isReady}
+          className="rounded-lg bg-green-600 px-8 py-3 text-lg font-semibold text-white hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+        >
+          {isReady ? "✓ Ready" : "Ready Up"}
+        </button>
+        <p className="text-sm text-gray-500 mt-2">
+          {readyCount} / {totalPlayers} players ready
+        </p>
+      </div>
     </div>
   );
 }

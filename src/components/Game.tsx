@@ -2,9 +2,8 @@ import { useState } from "react";
 import { useGameRoom } from "@/hooks/useGameRoom";
 import { useRouter } from "next/dist/client/components/navigation";
 import CopyRoomButton from "./CopyRoomButton";
-import ChatUI from "./ChatUI";
-import UserBadge from "./UserBadge";
 import RolePhase from "./RolePhase";
+import PlayerSidebar from "./PlayerSidebar";
 
 interface GameProps {
   username: string;
@@ -50,6 +49,10 @@ const Game = ({ username, roomId }: GameProps) => {
     dispatch({ type: "startGame" });
   };
 
+  const handleReady = () => {
+    dispatch({ type: "ready" });
+  };
+
   // Render different content based on phase
   const renderPhaseContent = () => {
     if (!gameState.phase) {
@@ -71,7 +74,19 @@ const Game = ({ username, roomId }: GameProps) => {
             (userRole === "Agent" || userRole === "Rival"),
         );
 
-        return <RolePhase userRole={userRole} teammates={teammates} />;
+        const readyCount = gameState.users.filter((u) => u.ready).length;
+        const isReady = currentUser?.ready || false;
+
+        return (
+          <RolePhase
+            userRole={userRole}
+            teammates={teammates}
+            onReady={handleReady}
+            isReady={isReady}
+            readyCount={readyCount}
+            totalPlayers={gameState.users.length}
+          />
+        );
 
       case "robbery1":
       case "robbery2":
@@ -152,23 +167,12 @@ const Game = ({ username, roomId }: GameProps) => {
         <div className="flex-1 overflow-auto">{renderPhaseContent()}</div>
       </div>
 
-      <div className="flex w-1/3 flex-col justify-end border-l border-gray-300">
-        <h2 className="text-lg p-4">
-          Players in room <span className="font-bold">{roomId}</span>
-        </h2>
-        <div className="flex flex-wrap gap-2 px-4 pb-4">
-          {gameState.users.map((user) => (
-            <UserBadge key={user.id} userId={user.id} color={user.color} />
-          ))}
-        </div>
-        <div className="h-1/2">
-          <ChatUI
-            log={gameState.log}
-            onSendMessage={handleSendMessage}
-            users={gameState.users}
-          />
-        </div>
-      </div>
+      <PlayerSidebar
+        roomId={roomId}
+        users={gameState.users}
+        log={gameState.log}
+        onSendMessage={handleSendMessage}
+      />
     </div>
   );
 };
