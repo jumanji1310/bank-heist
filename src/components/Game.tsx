@@ -57,16 +57,30 @@ const Game = ({ username, roomId }: GameProps) => {
   const renderPhaseContent = () => {
     if (!gameState.phase) {
       return (
-        <div className="flex flex-col items-center justify-center h-full">
-          <h1 className="text-4xl font-bold mb-4">Waiting to start...</h1>
-          <p className="text-gray-600">Click "Start Game" to begin!</p>
+        <div className="flex flex-col items-center justify-center h-full gap-4">
+          {gameState.hostId === username ? (
+            <>
+              <h1 className="text-4xl font-bold">
+                Click "Start Game" to begin!
+              </h1>
+              <button
+                onClick={handleStartGame}
+                className="rounded-md bg-green-500 px-6 py-3 text-white hover:bg-green-600 font-semibold"
+              >
+                Start Game
+              </button>
+            </>
+          ) : (
+            <h1 className="text-4xl font-bold">
+              Waiting for {gameState.hostId} to start...
+            </h1>
+          )}
         </div>
       );
     }
 
     switch (gameState.phase) {
       case "role":
-        // Find teammates based on role
         const teammates = gameState.users.filter(
           (u) =>
             u.id !== username &&
@@ -117,7 +131,7 @@ const Game = ({ username, roomId }: GameProps) => {
       case "hideout":
         return (
           <div className="flex flex-col items-center justify-center h-full">
-            <h1 className="text-4xl font-bold mb-4">Hideout</h1>
+            <h1 className="text-4xl font-bold">Hideout</h1>
             <p className="text-gray-600">Divide the loot...</p>
           </div>
         );
@@ -125,7 +139,7 @@ const Game = ({ username, roomId }: GameProps) => {
       default:
         return (
           <div className="flex flex-col items-center justify-center h-full">
-            <h1 className="text-4xl font-bold mb-4">Game Phase</h1>
+            <h1 className="text-4xl font-bold">Game Phase</h1>
           </div>
         );
     }
@@ -156,12 +170,6 @@ const Game = ({ username, roomId }: GameProps) => {
             </span>
           )}
           <CopyRoomButton roomId={roomId} />
-          <button
-            onClick={handleStartGame}
-            className="ml-auto rounded-md bg-green-500 px-4 py-2 text-white hover:bg-green-600"
-          >
-            Start Game
-          </button>
         </div>
 
         <div className="flex-1 overflow-auto">{renderPhaseContent()}</div>

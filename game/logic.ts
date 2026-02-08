@@ -36,6 +36,7 @@ export type DefaultAction =
 // This interface holds all the information about your game
 export interface GameState extends BaseGameState {
   target: number;
+  hostId?: string;
   phase?:
     | "role"
     | "robbery1"
@@ -56,6 +57,7 @@ export interface GameState extends BaseGameState {
 export const initialGame = () => ({
   users: [],
   target: Math.floor(Math.random() * 100),
+  hostId: undefined,
   log: addLog("Game Created!", []),
 });
 
@@ -79,9 +81,11 @@ export const gameUpdater = (
   // you don't need to add this yourself
   switch (action.type) {
     case "UserEntered":
+      const isFirstPlayer = state.users.length === 0;
       return {
         ...state,
         users: [...state.users, action.user],
+        hostId: isFirstPlayer ? action.user.id : state.hostId,
         log: addLog(`Player ${action.user.id} joined 🎉`, state.log),
       };
 
@@ -97,6 +101,13 @@ export const gameUpdater = (
         log: addLog(`${action.user.id}: ${action.message}`, state.log),
       };
     case "startGame":
+      if (action.user.id !== state.hostId) {
+        return {
+          ...state,
+          log: addLog(`Only the host can start the game!`, state.log),
+        };
+      }
+
       const roles = [
         "Agent",
         "Agent",

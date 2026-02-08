@@ -45,8 +45,6 @@ export default function RolePhase({
           </div>
         )}
 
-      <p className="text-gray-600 mt-4">Prepare for the heist...</p>
-
       <div className="mt-8">
         <button
           onClick={onReady}
