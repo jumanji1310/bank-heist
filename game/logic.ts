@@ -1,3 +1,14 @@
+import {
+  Card,
+  VAULT_CARD_DEFINITIONS,
+  ALARM_CARD_DEFINITIONS,
+  HANDCUFF_CARD_DEFINITIONS,
+  buildDeck,
+  shuffleDeck,
+} from "./cards";
+
+export type { Card };
+
 // util for easy adding logs
 const addLog = (message: string, logs: GameState["log"]): GameState["log"] => {
   return [...logs, { dt: new Date().getTime(), message: message }];
@@ -9,6 +20,7 @@ export interface User {
   color?: string;
   role?: string;
   ready?: boolean;
+  hand?: Card[];
 }
 
 // Do not change this! Every game has a list of users and log of actions
@@ -47,8 +59,12 @@ export interface GameState extends BaseGameState {
     | "getaway3"
     | "getaway4"
     | "hideout";
-  vaultDeck: string[];
-  alarmDeck: string[];
+  vaultDeck: Card[];
+  alarmDeck: Card[];
+  handcuffDeck: Card[];
+  vaultDiscard: Card[];
+  alarmDiscard: Card[];
+  handcuffDiscard: Card[];
 }
 
 // This is how a fresh new game starts out, it's a function so you can make it dynamic!
@@ -57,8 +73,12 @@ export const initialGame = () => ({
   users: [],
   hostId: undefined,
   log: addLog("Game Created!", []),
-  vaultDeck: [],
-  alarmDeck: [],
+  vaultDeck: shuffleDeck(buildDeck(VAULT_CARD_DEFINITIONS, "vault")),
+  alarmDeck: shuffleDeck(buildDeck(ALARM_CARD_DEFINITIONS, "alarm")),
+  handcuffDeck: shuffleDeck(buildDeck(HANDCUFF_CARD_DEFINITIONS, "handcuff")),
+  vaultDiscard: [],
+  alarmDiscard: [],
+  handcuffDiscard: [],
 });
 
 // Here are all the actions we can dispatch for a user
@@ -66,6 +86,7 @@ type GameAction =
   | { type: "guess"; guess: number }
   | { type: "drawVault" }
   | { type: "drawAlarm" }
+  | { type: "drawHandcuff" }
   | { type: "startGame" }
   | { type: "ready" };
 
@@ -84,7 +105,7 @@ export const gameUpdater = (
       const isFirstPlayer = state.users.length === 0;
       return {
         ...state,
-        users: [...state.users, action.user],
+        users: [...state.users, { ...action.user, hand: [] }],
         hostId: isFirstPlayer ? action.user.id : state.hostId,
         log: addLog(`Player ${action.user.id} joined 🎉`, state.log),
       };
@@ -141,16 +162,78 @@ export const gameUpdater = (
         log: addLog("Roles assigned 🔀", state.log),
       };
 
-    case "drawVault":
+    case "drawVault": {
+      if (state.vaultDeck.length === 0) {
+        return {
+          ...state,
+          log: addLog(`No vault cards left to draw!`, state.log),
+        };
+      }
+
+      const [drawnCard, ...remainingDeck] = state.vaultDeck;
+      const updatedUsers = state.users.map((u) =>
+        u.id === action.user.id
+          ? { ...u, hand: [...(u.hand || []), drawnCard] }
+          : u,
+      );
+
       return {
         ...state,
-        log: addLog(`${action.user.id} drew a vault card 🏦`, state.log),
+        vaultDeck: remainingDeck,
+        users: updatedUsers,
+        log: addLog(
+          `${action.user.id} drew ${drawnCard.name} (${drawnCard.value}) 🏦`,
+          state.log,
+        ),
       };
-    case "drawAlarm":
+    }
+
+    case "drawAlarm": {
+      if (state.alarmDeck.length === 0) {
+        return {
+          ...state,
+          log: addLog(`No alarm cards left to draw!`, state.log),
+        };
+      }
+
+      const [drawnCard, ...remainingDeck] = state.alarmDeck;
+      const updatedUsers = state.users.map((u) =>
+        u.id === action.user.id
+          ? { ...u, hand: [...(u.hand || []), drawnCard] }
+          : u,
+      );
+
       return {
         ...state,
-        log: addLog(`${action.user.id} drew an alarm card 🚨`, state.log),
+        alarmDeck: remainingDeck,
+        users: updatedUsers,
+        log: addLog(`${action.user.id} drew ${drawnCard.name} 🚨`, state.log),
       };
+    }
+
+    case "drawHandcuff": {
+      if (state.handcuffDeck.length === 0) {
+        return {
+          ...state,
+          log: addLog(`No handcuff cards left to draw!`, state.log),
+        };
+      }
+
+      const [drawnCard, ...remainingDeck] = state.handcuffDeck;
+      const updatedUsers = state.users.map((u) =>
+        u.id === action.user.id
+          ? { ...u, hand: [...(u.hand || []), drawnCard] }
+          : u,
+      );
+
+      return {
+        ...state,
+        handcuffDeck: remainingDeck,
+        users: updatedUsers,
+        log: addLog(`${action.user.id} drew ${drawnCard.name} 🔗`, state.log),
+      };
+    }
+
     case "ready": {
       const updatedUsers = state.users.map((u) =>
         u.id === action.user.id ? { ...u, ready: true } : u,
