@@ -16,9 +16,6 @@ const Game = ({ username, roomId }: GameProps) => {
   const { gameState, dispatch } = useGameRoom(username, roomId);
   const router = useRouter();
 
-  // Local state to use for the UI
-  const [guess, setGuess] = useState<number>(0);
-
   // Indicated that the game is loading
   if (gameState === null) {
     return (
@@ -35,13 +32,6 @@ const Game = ({ username, roomId }: GameProps) => {
   const currentUser = gameState.users.find((u) => u.id === username);
   const userRole = currentUser?.role;
 
-  const handleGuess = (event: React.SyntheticEvent) => {
-    event.preventDefault();
-    // Dispatch allows you to send an action!
-    // Modify /game/logic.ts to change what actions you can send
-    dispatch({ type: "guess", guess: guess });
-  };
-
   const handleSendMessage = (message: string) => {
     // You'll need to add a chat action to your game logic
     dispatch({ type: "Chat", message });
@@ -53,6 +43,14 @@ const Game = ({ username, roomId }: GameProps) => {
 
   const handleReady = () => {
     dispatch({ type: "ready" });
+  };
+
+  const handleDrawVault = () => {
+    dispatch({ type: "drawVault" });
+  };
+
+  const handleDrawAlarm = () => {
+    dispatch({ type: "drawAlarm" });
   };
 
   // Render different content based on phase
@@ -83,7 +81,11 @@ const Game = ({ username, roomId }: GameProps) => {
     return (
       <div className="flex flex-col h-full">
         <div className="h-[65%] overflow-hidden">
-          <PlayerTable users={gameState.users} currentUsername={username} />
+          <PlayerTable
+            users={gameState.users}
+            currentUsername={username}
+            currentPlayer={gameState.currentPlayer}
+          />
         </div>
 
         <div className="h-[30%] flex flex-col items-center justify-center overflow-auto">
@@ -104,12 +106,16 @@ const Game = ({ username, roomId }: GameProps) => {
           )}
 
           {gameState.phase.startsWith("robbery") && (
-            <div className="flex flex-col items-center justify-center gap-4">
-              <h1 className="text-4xl font-bold">
-                Robbery Phase {gameState.phase.slice(-1)}
-              </h1>
-              <p className="text-gray-600">Execute the heist!</p>
-            </div>
+            <RobberyPhase
+              phaseNumber={gameState.phase.slice(-1)}
+              currentUser={currentUser}
+              currentPlayer={gameState.currentPlayer}
+              username={username}
+              onDrawVault={handleDrawVault}
+              onDrawAlarm={handleDrawAlarm}
+              vaultDeckSize={gameState.vaultDeck.length}
+              alarmDeckSize={gameState.alarmDeck.length}
+            />
           )}
 
           {gameState.phase.startsWith("getaway") && (

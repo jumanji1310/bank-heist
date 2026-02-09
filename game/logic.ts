@@ -21,6 +21,8 @@ export interface User {
   role?: string;
   ready?: boolean;
   hand?: Card[];
+  hasDrawnThisPhase?: boolean;
+  hasDrawnAlarmThisPhase?: boolean;
 }
 
 // Do not change this! Every game has a list of users and log of actions
@@ -48,6 +50,7 @@ export type DefaultAction =
 // This interface holds all the information about your game
 export interface GameState extends BaseGameState {
   hostId?: string;
+  currentPlayer?: string;
   phase?:
     | "role"
     | "robbery1"
@@ -72,6 +75,7 @@ export interface GameState extends BaseGameState {
 export const initialGame = () => ({
   users: [],
   hostId: undefined,
+  currentPlayer: undefined,
   log: addLog("Game Created!", []),
   vaultDeck: shuffleDeck(buildDeck(VAULT_CARD_DEFINITIONS, "vault")),
   alarmDeck: shuffleDeck(buildDeck(ALARM_CARD_DEFINITIONS, "alarm")),
@@ -170,21 +174,93 @@ export const gameUpdater = (
         };
       }
 
+      // Only current player can draw
+      if (action.user.id !== state.currentPlayer) {
+        return {
+          ...state,
+          log: addLog(`It's not ${action.user.id}'s turn!`, state.log),
+        };
+      }
+
+      const currentUserData = state.users.find((u) => u.id === action.user.id);
+      if (currentUserData?.hasDrawnThisPhase) {
+        return {
+          ...state,
+          log: addLog(
+            `${action.user.id} has already drawn this phase!`,
+            state.log,
+          ),
+        };
+      }
+
+      // For robbery phases 2-4, must draw alarm first
+      const needsAlarm =
+        state.phase &&
+        ["robbery2", "robbery3", "robbery4"].includes(state.phase);
+      if (needsAlarm && !currentUserData?.hasDrawnAlarmThisPhase) {
+        return {
+          ...state,
+          log: addLog(
+            `${action.user.id} must draw an alarm card first!`,
+            state.log,
+          ),
+        };
+      }
+
       const [drawnCard, ...remainingDeck] = state.vaultDeck;
       const updatedUsers = state.users.map((u) =>
         u.id === action.user.id
-          ? { ...u, hand: [...(u.hand || []), drawnCard] }
+          ? {
+              ...u,
+              hand: [...(u.hand || []), drawnCard],
+              hasDrawnThisPhase: true,
+            }
           : u,
       );
+
+      const allDrawn = updatedUsers.every((u) => u.hasDrawnThisPhase);
+
+      // Advance to next player
+      const currentPlayerIndex = updatedUsers.findIndex(
+        (u) => u.id === state.currentPlayer,
+      );
+      const nextPlayerIndex = (currentPlayerIndex + 1) % updatedUsers.length;
+      const nextPlayer = updatedUsers[nextPlayerIndex].id;
+
+      if (allDrawn && state.phase) {
+        const phaseMap: Record<string, string> = {
+          robbery1: "robbery2",
+          robbery2: "robbery3",
+          robbery3: "robbery4",
+          robbery4: "getaway1",
+        };
+        const nextPhase = phaseMap[state.phase];
+
+        if (nextPhase) {
+          return {
+            ...state,
+            vaultDeck: remainingDeck,
+            users: updatedUsers.map((u) => ({
+              ...u,
+              hasDrawnThisPhase: false,
+              hasDrawnAlarmThisPhase: false,
+            })),
+            currentPlayer: updatedUsers[0].id,
+            phase: nextPhase as any,
+            log: addLog(
+              `${action.user.id} drew ${drawnCard.name} 🏦. All players drawn! Moving to ${nextPhase}...`,
+              state.log,
+            ),
+          };
+        }
+      }
 
       return {
         ...state,
         vaultDeck: remainingDeck,
         users: updatedUsers,
-        log: addLog(
-          `${action.user.id} drew ${drawnCard.name} (${drawnCard.value}) 🏦`,
-          state.log,
-        ),
+        currentPlayer: nextPlayer,
+        log: addLog(`${action.user.id} drew ${drawnCard.name} 🏦`, state.log),
       };
     }
 
@@ -196,10 +272,33 @@ export const gameUpdater = (
         };
       }
 
+      // Only current player can draw
+      if (action.user.id !== state.currentPlayer) {
+        return {
+          ...state,
+          log: addLog(`It's not ${action.user.id}'s turn!`, state.log),
+        };
+      }
+
+      const currentUserData = state.users.find((u) => u.id === action.user.id);
+      if (currentUserData?.hasDrawnAlarmThisPhase) {
+        return {
+          ...state,
+          log: addLog(
+            `${action.user.id} has already drawn an alarm card!`,
+            state.log,
+          ),
+        };
+      }
+
       const [drawnCard, ...remainingDeck] = state.alarmDeck;
       const updatedUsers = state.users.map((u) =>
         u.id === action.user.id
-          ? { ...u, hand: [...(u.hand || []), drawnCard] }
+          ? {
+              ...u,
+              hand: [...(u.hand || []), drawnCard],
+              hasDrawnAlarmThisPhase: true,
+            }
           : u,
       );
 
@@ -244,7 +343,13 @@ export const gameUpdater = (
       if (allReady && state.phase === "role") {
         return {
           ...state,
-          users: updatedUsers.map((u) => ({ ...u, ready: false })),
+          users: updatedUsers.map((u) => ({
+            ...u,
+            ready: false,
+            hasDrawnThisPhase: false,
+            hasDrawnAlarmThisPhase: false,
+          })),
+          currentPlayer: updatedUsers[0].id,
           phase: "robbery1",
           log: addLog("All players ready! Starting robbery... 🎯", state.log),
         };

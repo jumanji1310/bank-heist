@@ -4,6 +4,7 @@ import { User } from "../../game/logic";
 interface PlayerTableProps {
   users: User[];
   currentUsername: string;
+  currentPlayer?: string;
 }
 
 const CIRCLE_SIZE = 800;
@@ -12,6 +13,7 @@ const CIRCLE_RADIUS = 200;
 export default function PlayerTable({
   users,
   currentUsername,
+  currentPlayer,
 }: PlayerTableProps) {
   const currentUserIndex = users.findIndex((u) => u.id === currentUsername);
 
@@ -20,7 +22,7 @@ export default function PlayerTable({
     ...users.slice(currentUserIndex),
     ...users.slice(0, currentUserIndex),
   ];
-
+  console.log("Current Player:", currentPlayer);
   return (
     <div className="flex items-center justify-center h-full">
       <div className="relative w-full max-w-4xl aspect-square">
@@ -39,6 +41,26 @@ export default function PlayerTable({
             strokeWidth="2"
           />
         </svg>
+
+        {/* Current Player in center */}
+        {currentPlayer && (
+          <div
+            className="absolute transform -translate-x-1/2 -translate-y-1/2"
+            style={{
+              left: "50%",
+              top: "50%",
+            }}
+          >
+            <div className="flex flex-col items-center gap-1">
+              <div className="text-sm font-medium text-gray-500">
+                Current Turn
+              </div>
+              <div className="text-2xl font-bold text-blue-600">
+                {currentPlayer}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Players positioned around circle */}
         <div className="absolute inset-0">
