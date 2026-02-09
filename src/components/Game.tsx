@@ -3,7 +3,9 @@ import { useGameRoom } from "@/hooks/useGameRoom";
 import { useRouter } from "next/dist/client/components/navigation";
 import CopyRoomButton from "./CopyRoomButton";
 import RolePhase from "./RolePhase";
+import RobberyPhase from "./RobberyPhase";
 import PlayerSidebar from "./PlayerSidebar";
+import PlayerTable from "./PlayerTable";
 
 interface GameProps {
   username: string;
@@ -58,11 +60,10 @@ const Game = ({ username, roomId }: GameProps) => {
     if (!gameState.phase) {
       return (
         <div className="flex flex-col items-center justify-center h-full gap-4">
+          <h1 className="text-4xl font-bold">Waiting to start...</h1>
           {gameState.hostId === username ? (
             <>
-              <h1 className="text-4xl font-bold">
-                Click "Start Game" to begin!
-              </h1>
+              <p className="text-gray-600">Click "Start Game" to begin!</p>
               <button
                 onClick={handleStartGame}
                 className="rounded-md bg-green-500 px-6 py-3 text-white hover:bg-green-600 font-semibold"
@@ -71,84 +72,70 @@ const Game = ({ username, roomId }: GameProps) => {
               </button>
             </>
           ) : (
-            <h1 className="text-4xl font-bold">
+            <p className="text-gray-600">
               Waiting for {gameState.hostId} to start...
-            </h1>
+            </p>
           )}
         </div>
       );
     }
 
-    switch (gameState.phase) {
-      case "role":
-        const teammates = gameState.users.filter(
-          (u) =>
-            u.id !== username &&
-            u.role === userRole &&
-            (userRole === "Agent" || userRole === "Rival"),
-        );
+    return (
+      <div className="flex flex-col h-full">
+        <div className="h-[65%] overflow-hidden">
+          <PlayerTable users={gameState.users} currentUsername={username} />
+        </div>
 
-        const readyCount = gameState.users.filter((u) => u.ready).length;
-        const isReady = currentUser?.ready || false;
+        <div className="h-[30%] flex flex-col items-center justify-center overflow-auto">
+          {gameState.phase === "role" && (
+            <RolePhase
+              userRole={userRole}
+              teammates={gameState.users.filter(
+                (u) =>
+                  u.id !== username &&
+                  u.role === userRole &&
+                  (userRole === "Agent" || userRole === "Rival"),
+              )}
+              onReady={handleReady}
+              isReady={currentUser?.ready || false}
+              readyCount={gameState.users.filter((u) => u.ready).length}
+              totalPlayers={gameState.users.length}
+            />
+          )}
 
-        return (
-          <RolePhase
-            userRole={userRole}
-            teammates={teammates}
-            onReady={handleReady}
-            isReady={isReady}
-            readyCount={readyCount}
-            totalPlayers={gameState.users.length}
-          />
-        );
+          {gameState.phase.startsWith("robbery") && (
+            <div className="flex flex-col items-center justify-center gap-4">
+              <h1 className="text-4xl font-bold">
+                Robbery Phase {gameState.phase.slice(-1)}
+              </h1>
+              <p className="text-gray-600">Execute the heist!</p>
+            </div>
+          )}
 
-      case "robbery1":
-      case "robbery2":
-      case "robbery3":
-      case "robbery4":
-        return (
-          <div className="flex flex-col items-center justify-center h-full">
-            <h1 className="text-4xl font-bold mb-4">
-              Robbery Phase {gameState.phase.slice(-1)}
-            </h1>
-            <p className="text-gray-600">Execute the heist!</p>
-          </div>
-        );
+          {gameState.phase.startsWith("getaway") && (
+            <div className="flex flex-col items-center justify-center gap-4">
+              <h1 className="text-4xl font-bold">
+                Getaway Phase {gameState.phase.slice(-1)}
+              </h1>
+              <p className="text-gray-600">Escape the scene!</p>
+            </div>
+          )}
 
-      case "getaway1":
-      case "getaway2":
-      case "getaway3":
-      case "getaway4":
-        return (
-          <div className="flex flex-col items-center justify-center h-full">
-            <h1 className="text-4xl font-bold mb-4">
-              Getaway Phase {gameState.phase.slice(-1)}
-            </h1>
-            <p className="text-gray-600">Escape the scene!</p>
-          </div>
-        );
-
-      case "hideout":
-        return (
-          <div className="flex flex-col items-center justify-center h-full">
-            <h1 className="text-4xl font-bold">Hideout</h1>
-            <p className="text-gray-600">Divide the loot...</p>
-          </div>
-        );
-
-      default:
-        return (
-          <div className="flex flex-col items-center justify-center h-full">
-            <h1 className="text-4xl font-bold">Game Phase</h1>
-          </div>
-        );
-    }
+          {gameState.phase === "hideout" && (
+            <div className="flex flex-col items-center justify-center gap-4">
+              <h1 className="text-4xl font-bold">Hideout</h1>
+              <p className="text-gray-600">Divide the loot...</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
   };
 
   return (
     <div className="flex h-screen">
-      <div className="w-2/3 p-4 flex flex-col">
-        <div className="mb-4 flex items-center gap-2">
+      <div className="w-2/3 p-4 flex flex-col h-full">
+        <div className="h-[5%] flex items-center gap-2 flex-shrink-0">
           <button
             onClick={() => router.back()}
             className="rounded-md bg-gray-200 p-2 hover:bg-gray-300"
@@ -172,7 +159,9 @@ const Game = ({ username, roomId }: GameProps) => {
           <CopyRoomButton roomId={roomId} />
         </div>
 
-        <div className="flex-1 overflow-auto">{renderPhaseContent()}</div>
+        <div className="h-[95%] flex-shrink-0 overflow-hidden">
+          {renderPhaseContent()}
+        </div>
       </div>
 
       <PlayerSidebar

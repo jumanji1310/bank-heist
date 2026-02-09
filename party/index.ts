@@ -1,11 +1,6 @@
 import type * as Party from "partykit/server";
-
 import { gameUpdater, initialGame, Action, ServerAction } from "../game/logic";
 import { GameState } from "../game/logic";
-
-interface ServerMessage {
-  state: GameState;
-}
 
 export default class Server implements Party.Server {
   private gameState: GameState;
@@ -13,7 +8,6 @@ export default class Server implements Party.Server {
   constructor(readonly party: Party.Party) {
     this.gameState = initialGame();
     console.log("Room created:", party.id);
-    console.log("Room target", this.gameState.target);
     // party.storage.put;
   }
   private generateRandomColor(): string {

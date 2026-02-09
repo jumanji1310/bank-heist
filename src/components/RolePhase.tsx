@@ -19,7 +19,7 @@ export default function RolePhase({
   totalPlayers,
 }: RolePhaseProps) {
   return (
-    <div className="flex flex-col items-center justify-center h-full">
+    <div className="flex flex-col items-center justify-center">
       <h1 className="text-4xl font-bold mb-4">Your Role</h1>
       {userRole && (
         <div className="text-6xl font-bold text-purple-600 mb-4">

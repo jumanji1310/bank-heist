@@ -35,7 +35,6 @@ export type DefaultAction =
 
 // This interface holds all the information about your game
 export interface GameState extends BaseGameState {
-  target: number;
   hostId?: string;
   phase?:
     | "role"
@@ -48,17 +47,18 @@ export interface GameState extends BaseGameState {
     | "getaway3"
     | "getaway4"
     | "hideout";
-  vaultDeck?: string[];
-  alarmDeck?: string[];
+  vaultDeck: string[];
+  alarmDeck: string[];
 }
 
 // This is how a fresh new game starts out, it's a function so you can make it dynamic!
 // In the case of the guesser game we start out with a random target
 export const initialGame = () => ({
   users: [],
-  target: Math.floor(Math.random() * 100),
   hostId: undefined,
   log: addLog("Game Created!", []),
+  vaultDeck: [],
+  alarmDeck: [],
 });
 
 // Here are all the actions we can dispatch for a user
@@ -121,14 +121,19 @@ export const gameUpdater = (
 
       const shuffledRoles = [...roles].sort(() => Math.random() - 0.5);
 
-      const usersWithRoles = state.users.map((u, i) => ({
+      // Randomize user order
+      const shuffledUsers = [...state.users].sort(() => Math.random() - 0.5);
+
+      const usersWithRoles = shuffledUsers.map((u, i) => ({
         ...u,
         role: shuffledRoles[i % shuffledRoles.length],
       }));
+
       console.log(
         "Assigned roles:",
         usersWithRoles.map((u) => `${u.id}: ${u.role}`),
       );
+
       return {
         ...state,
         users: usersWithRoles,
@@ -146,25 +151,6 @@ export const gameUpdater = (
         ...state,
         log: addLog(`${action.user.id} drew an alarm card 🚨`, state.log),
       };
-    case "guess":
-      if (action.guess === state.target) {
-        return {
-          ...state,
-          target: Math.floor(Math.random() * 100),
-          log: addLog(
-            `user ${action.user.id} guessed ${action.guess} and won! 👑`,
-            state.log,
-          ),
-        };
-      } else {
-        return {
-          ...state,
-          log: addLog(
-            `user ${action.user.id} guessed ${action.guess}`,
-            state.log,
-          ),
-        };
-      }
     case "ready": {
       const updatedUsers = state.users.map((u) =>
         u.id === action.user.id ? { ...u, ready: true } : u,
@@ -187,5 +173,7 @@ export const gameUpdater = (
         log: addLog(`${action.user.id} is ready ✓`, state.log),
       };
     }
+    default:
+      return state;
   }
 };
