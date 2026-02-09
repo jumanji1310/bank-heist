@@ -53,6 +53,14 @@ const Game = ({ username, roomId }: GameProps) => {
     dispatch({ type: "drawAlarm" });
   };
 
+  const handleGiveCard = (recipientId: string) => {
+    dispatch({ type: "giveCard", recipientId });
+  };
+
+  const handleAcknowledgeCard = () => {
+    dispatch({ type: "acknowledgeCard" });
+  };
+
   // Render different content based on phase
   const renderPhaseContent = () => {
     if (!gameState.phase) {
@@ -111,8 +119,14 @@ const Game = ({ username, roomId }: GameProps) => {
               currentUser={currentUser}
               currentPlayer={gameState.currentPlayer}
               username={username}
+              users={gameState.users}
+              pendingCard={gameState.pendingCard}
+              pendingCardDrawnBy={gameState.pendingCardDrawnBy}
+              pendingCardRecipient={gameState.pendingCardRecipient}
               onDrawVault={handleDrawVault}
               onDrawAlarm={handleDrawAlarm}
+              onGiveCard={handleGiveCard}
+              onAcknowledge={handleAcknowledgeCard}
               vaultDeckSize={gameState.vaultDeck.length}
               alarmDeckSize={gameState.alarmDeck.length}
             />
@@ -175,6 +189,7 @@ const Game = ({ username, roomId }: GameProps) => {
         users={gameState.users}
         log={gameState.log}
         onSendMessage={handleSendMessage}
+        currentUserHand={currentUser?.hand}
       />
     </div>
   );

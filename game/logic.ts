@@ -51,6 +51,9 @@ export type DefaultAction =
 export interface GameState extends BaseGameState {
   hostId?: string;
   currentPlayer?: string;
+  pendingCard?: Card;
+  pendingCardDrawnBy?: string;
+  pendingCardRecipient?: string;
   phase?:
     | "role"
     | "robbery1"
@@ -76,6 +79,9 @@ export const initialGame = () => ({
   users: [],
   hostId: undefined,
   currentPlayer: undefined,
+  pendingCard: undefined,
+  pendingCardDrawnBy: undefined,
+  pendingCardRecipient: undefined,
   log: addLog("Game Created!", []),
   vaultDeck: shuffleDeck(buildDeck(VAULT_CARD_DEFINITIONS, "vault")),
   alarmDeck: shuffleDeck(buildDeck(ALARM_CARD_DEFINITIONS, "alarm")),
@@ -91,6 +97,8 @@ type GameAction =
   | { type: "drawVault" }
   | { type: "drawAlarm" }
   | { type: "drawHandcuff" }
+  | { type: "giveCard"; recipientId: string }
+  | { type: "acknowledgeCard" }
   | { type: "startGame" }
   | { type: "ready" };
 
@@ -208,17 +216,83 @@ export const gameUpdater = (
       }
 
       const [drawnCard, ...remainingDeck] = state.vaultDeck;
+
       const updatedUsers = state.users.map((u) =>
-        u.id === action.user.id
-          ? {
-              ...u,
-              hand: [...(u.hand || []), drawnCard],
-              hasDrawnThisPhase: true,
-            }
-          : u,
+        u.id === action.user.id ? { ...u, hasDrawnThisPhase: true } : u,
       );
 
-      const allDrawn = updatedUsers.every((u) => u.hasDrawnThisPhase);
+      return {
+        ...state,
+        users: updatedUsers,
+        vaultDeck: remainingDeck,
+        pendingCard: drawnCard,
+        pendingCardDrawnBy: action.user.id,
+        log: addLog(
+          `${action.user.id} drew ${drawnCard.name} 🏦 - choose a player to give it to`,
+          state.log,
+        ),
+      };
+    }
+
+    case "giveCard": {
+      if (!state.pendingCard || !state.pendingCardDrawnBy) {
+        return {
+          ...state,
+          log: addLog(`No card to give!`, state.log),
+        };
+      }
+
+      // Only the player who drew can give the card
+      if (action.user.id !== state.pendingCardDrawnBy) {
+        return {
+          ...state,
+          log: addLog(
+            `Only ${state.pendingCardDrawnBy} can give this card!`,
+            state.log,
+          ),
+        };
+      }
+
+      const recipientId = (action as any).recipientId;
+
+      // Set card as pending acknowledgement
+      return {
+        ...state,
+        pendingCardRecipient: recipientId,
+        log: addLog(
+          `${action.user.id} gave ${state.pendingCard?.name} to ${recipientId} - waiting for acknowledgement...`,
+          state.log,
+        ),
+      };
+    }
+
+    case "acknowledgeCard": {
+      if (!state.pendingCard || !state.pendingCardRecipient) {
+        return {
+          ...state,
+          log: addLog(`No card to acknowledge!`, state.log),
+        };
+      }
+
+      // Only the recipient can acknowledge
+      if (action.user.id !== state.pendingCardRecipient) {
+        return {
+          ...state,
+          log: addLog(
+            `Only ${state.pendingCardRecipient} can acknowledge this card!`,
+            state.log,
+          ),
+        };
+      }
+
+      // Add card to recipient's hand
+      const updatedUsers = state.users.map((u) =>
+        u.id === action.user.id
+          ? { ...u, hand: [...(u.hand || []), state.pendingCard] }
+          : u.id === state.pendingCardDrawnBy
+            ? { ...u, hasDrawnThisPhase: true }
+            : u,
+      );
 
       // Advance to next player
       const currentPlayerIndex = updatedUsers.findIndex(
@@ -226,6 +300,8 @@ export const gameUpdater = (
       );
       const nextPlayerIndex = (currentPlayerIndex + 1) % updatedUsers.length;
       const nextPlayer = updatedUsers[nextPlayerIndex].id;
+
+      const allDrawn = updatedUsers.every((u) => u.hasDrawnThisPhase);
 
       if (allDrawn && state.phase) {
         const phaseMap: Record<string, string> = {
@@ -239,16 +315,24 @@ export const gameUpdater = (
         if (nextPhase) {
           return {
             ...state,
-            vaultDeck: remainingDeck,
-            users: updatedUsers.map((u) => ({
-              ...u,
-              hasDrawnThisPhase: false,
-              hasDrawnAlarmThisPhase: false,
-            })),
+            users: updatedUsers.map(
+              (u): User => ({
+                id: u.id,
+                color: u.color,
+                role: u.role,
+                ready: u.ready,
+                hand: (u.hand || []) as Card[],
+                hasDrawnThisPhase: false,
+                hasDrawnAlarmThisPhase: false,
+              }),
+            ),
             currentPlayer: updatedUsers[0].id,
+            pendingCard: undefined,
+            pendingCardDrawnBy: undefined,
+            pendingCardRecipient: undefined,
             phase: nextPhase as any,
             log: addLog(
-              `${action.user.id} drew ${drawnCard.name} 🏦. All players drawn! Moving to ${nextPhase}...`,
+              `${action.user.id} acknowledged ${state.pendingCard.name}. All players drawn! Moving to ${nextPhase}...`,
               state.log,
             ),
           };
@@ -257,10 +341,25 @@ export const gameUpdater = (
 
       return {
         ...state,
-        vaultDeck: remainingDeck,
-        users: updatedUsers,
+        users: updatedUsers.map(
+          (u): User => ({
+            id: u.id,
+            color: u.color,
+            role: u.role,
+            ready: u.ready,
+            hand: (u.hand || []) as Card[],
+            hasDrawnThisPhase: u.hasDrawnThisPhase,
+            hasDrawnAlarmThisPhase: u.hasDrawnAlarmThisPhase,
+          }),
+        ),
         currentPlayer: nextPlayer,
-        log: addLog(`${action.user.id} drew ${drawnCard.name} 🏦`, state.log),
+        pendingCard: undefined,
+        pendingCardDrawnBy: undefined,
+        pendingCardRecipient: undefined,
+        log: addLog(
+          `${action.user.id} acknowledged ${state.pendingCard.name}`,
+          state.log,
+        ),
       };
     }
 
